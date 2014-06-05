@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """A placement is a final arrangement of jobs at given (X,Y) positions.
-This class is intended to "un-pack" an arragement of jobs constructed
+This class is intended to "un-pack" an arrangement of jobs constructed
 manually through Layout/Panel/JobLayout/etc. (i.e., a layout.def file)
 or automatically through a Tiling. From either source, the result is
 simply a list of jobs.

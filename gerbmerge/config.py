@@ -55,7 +55,8 @@ MergeOutputFiles = {
   'boardoutline': 'merged.boardoutline.ger',
   'drills':       'merged.drills.xln',
   'placement':    'merged.placement.txt',
-  'toollist':     'merged.toollist.drl'
+  'toollist':     'merged.toollist.drl',
+  'centroid':     'merged.centroid.smd'
   }
 
 # The global aperture table, indexed by aperture code (e.g., 'D10')
@@ -359,6 +360,8 @@ def parseConfigFile(fname, Config=Config, Jobs=Jobs):
 
       if layername=='boardoutline':
         J.parseGerber(fname, layername, updateExtents=1)
+      elif layername=='centroid':
+        J.parseCentroid(fname, layername)
       elif layername[0]=='*':
         J.parseGerber(fname, layername, updateExtents=0)
       elif layername=='drills':

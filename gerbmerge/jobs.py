@@ -18,6 +18,7 @@ import string
 import __builtin__
 import copy
 import types
+import csv
 
 import aptable
 import config
@@ -170,6 +171,9 @@ class Job:
     # This is a mapping from tool name to diameter for THIS JOB
     self.ToolList = None
 
+    # Centroid placement coordinates for surface mount components
+    self.centroids = {}
+    
     # How many times to replicate this job if using auto-placement
     self.Repeat = 1
 
@@ -218,7 +222,7 @@ class Job:
         if type(c) == types.TupleType:                      ## ensure that command is of type tuple
           command_list = list(c)                            ## convert tuple to list
           if  (type( command_list[0] ) == types.IntType) \
-          and (type( command_list[1] ) == types.IntType):  ## ensure that first two elemenst are integers
+          and (type( command_list[1] ) == types.IntType):  ## ensure that first two elements are integers
             command_list[0] += x_shift
             command_list[1] += y_shift
           command[index] = tuple(command_list)              ## convert list back to tuple
@@ -235,13 +239,24 @@ class Job:
         # Shift X and Y coordinate of command
         command_list = list(c)                              ## convert tuple to list
         if ( type( command_list[0] ) == types.IntType ) \
-        and ( type( command_list[1] ) == types.IntType ):  ## ensure that first two elemenst are integers
+        and ( type( command_list[1] ) == types.IntType ):   ## ensure that first two elements are integers
           command_list[0] += x_shift / 10
           command_list[1] += y_shift / 10
         command[index] = tuple(command_list)                ## convert list back to tuple
         
       self.xcommands[tool] = command                        ## set modified command
 
+  def parseCentroid(self, fullname, layername):
+    """Read the Centroid file that provides locations
+    and rotation instructions for surface mount
+    components"""
+
+    self.centroids[layername] = []
+    reader = csv.reader(open(fullname, 'rb'))
+    next(reader)
+    for row in reader:
+        self.centroids[layername].append(row)
+            
   def parseGerber(self, fullname, layername, updateExtents = 0):
     """Do the dirty work. Read the Gerber file given the
        global aperture table GAT and global aperture macro table GAMT"""
@@ -797,6 +812,35 @@ class Job:
           x, y = cmd
           makestroke.drawDrillHit(fid, 10*x+DX, 10*y+DY, toolNum)
 
+  def writeCentroid(self, Xoff, Yoff):
+    """Write centroid data for each job"""
+
+    if not self.centroids:
+      return
+
+    # convert self.minx and self.miny into inches to match Xoff and Yoff
+    DX = Xoff - self.minx * 0.00001
+    DY = Yoff - self.miny * 0.00001
+
+    print ""
+    print '------------- %s ------------' % self.name
+    # print 'writeCentroid (minx: %f, miny: %f), (Xoff: %f, Yoff: %f ), (DX: %f, DY: %f)' % \
+    #       (self.minx * 0.00001, self.miny * 0.00001, Xoff, Yoff, DX, DY)
+
+    # Shift centroid X and Y data
+    for layername in self.centroids.keys():
+      updated_centroids = []
+      for refdes, layer, x, y, rotation in self.centroids[layername]:
+        # Centroid data is in the format:
+        # [RefDes, Layer, LocationX, LocationY, Rotation]
+
+        # inches
+        newx = float(x) + Xoff - 0.011 # manual offset to account for incorrect border in eagle
+        newy = float(y) + Yoff - 0.010
+
+        a_list = [refdes, layer, round(newx, 3), round(newy, 3), rotation]
+        print a_list
+
   def aperturesAndMacros(self, layername):
     "Return dictionaries whose keys are all necessary aperture names and macro names for this layer"
 
@@ -1024,6 +1068,10 @@ class JobLayout:
 
   def canonicalize(self):       # Must return a JobLayout object as a list
     return [self]
+
+  def writeCentroid(self):
+    assert self.x is not None
+    self.job.writeCentroid(self.x, self.y)
 
   def writeGerber(self, fid, layername):
     assert self.x is not None
@@ -1278,6 +1326,28 @@ def rotateJob(job, degrees = 90, firstpass = True):
       newy = int(round(newy/10.0))
 
       J.xcommands[tool].append((newx,newy))
+
+  # Rotate centroid x,y and rotation data
+  minxinches = job.minx *.00001
+  minyinches = job.miny *.00001
+  offsetinches = offset *.00001
+
+  # print '(minxinches: %f, minyinches: %f, offsetinches: %f)' %(minxinches, minyinches, offsetinches)
+
+  for layername in job.centroids.keys():
+    J.centroids[layername] = []
+
+    for refdes, layer, x, y, rotation in job.centroids[layername]:
+      # Centroid data is in the format:
+      # [RefDes, Layer, LocationX, LocationY, Rotation]
+
+      # (X,Y) --> (-Y,X) effects a 90-degree counterclockwise shift
+      # Adding 'offset' to -Y maintains the lower-left origin of (minx,miny).
+      newx = -(float(y) - minyinches) + minxinches + offsetinches
+      newy = (float(x) - minxinches) + minyinches
+      newrotation = amacro.rotatetheta(int(rotation))
+
+      J.centroids[layername].append([refdes, layer, round(newx, 3), round(newy, 3), newrotation])
 
   # Rotate some more if required
   degrees -= 90

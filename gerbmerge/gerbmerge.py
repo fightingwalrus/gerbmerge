@@ -647,7 +647,12 @@ def merge(opts, args, gui = None):
   
   writeExcellonFooter(fid)
   fid.close()
-  
+
+  # write out centroids for all placements
+  for job in Place.jobs:
+    job.writeCentroid()
+
+
   updateGUI("Closing files...")
 
   # Compute stats
