@@ -822,8 +822,6 @@ class Job:
     DX = Xoff - self.minx * 0.00001
     DY = Yoff - self.miny * 0.00001
 
-    print ""
-    print '------------- %s ------------' % self.name
     # print 'writeCentroid (minx: %f, miny: %f), (Xoff: %f, Yoff: %f ), (DX: %f, DY: %f)' % \
     #       (self.minx * 0.00001, self.miny * 0.00001, Xoff, Yoff, DX, DY)
 
@@ -839,7 +837,11 @@ class Job:
         newy = float(y) + Yoff - 0.010
 
         a_list = [refdes, layer, round(newx, 3), round(newy, 3), rotation]
-        print a_list
+
+        if refdes in config.CentroidPartMap.keys():
+          config.CentroidPartMap[refdes].append(a_list)
+        else:
+          config.CentroidPartMap[refdes] = [a_list]
 
   def aperturesAndMacros(self, layername):
     "Return dictionaries whose keys are all necessary aperture names and macro names for this layer"
@@ -1331,8 +1333,6 @@ def rotateJob(job, degrees = 90, firstpass = True):
   minxinches = job.minx *.00001
   minyinches = job.miny *.00001
   offsetinches = offset *.00001
-
-  # print '(minxinches: %f, minyinches: %f, offsetinches: %f)' %(minxinches, minyinches, offsetinches)
 
   for layername in job.centroids.keys():
     J.centroids[layername] = []

@@ -27,6 +27,7 @@ import sys
 import os
 import getopt
 import re
+import csv
 
 import aptable
 import jobs
@@ -200,6 +201,13 @@ def writeCropMarks(fid, drawing_code, OriginX, OriginY, MaxXExtent, MaxYExtent):
   fid.write('X%07dY%07dD02*\n' % (util.in2gerb(x+0.000), util.in2gerb(y-0.125)))
   fid.write('X%07dY%07dD01*\n' % (util.in2gerb(x+0.000), util.in2gerb(y+0.000)))
   fid.write('X%07dY%07dD01*\n' % (util.in2gerb(x+0.125), util.in2gerb(y+0.000)))
+
+def writeCentroidToCsv(fullname):
+  # Write centroid data to csv.
+  writer = csv.writer(open(fullname, 'wb'))
+  writer.writerow(['RefDes', 'Layer', 'LocationX', 'LocationY', 'Rotation'])
+  for key in sorted(config.CentroidPartMap):
+    writer.writerows(config.CentroidPartMap[key])
 
 def disclaimer():
   print """
@@ -426,6 +434,9 @@ def merge(opts, args, gui = None):
   print 'Writing merged output files ...'
 
   for layername in config.LayerList.keys():
+    if layername == 'centroid':
+      continue
+
     lname = layername
     if lname[0]=='*':
       lname = lname[1:]
@@ -648,9 +659,18 @@ def merge(opts, args, gui = None):
   writeExcellonFooter(fid)
   fid.close()
 
-  # write out centroids for all placements
+  # updates the global centroid map with rotated
+  # and offset centroid data by part description
   for job in Place.jobs:
     job.writeCentroid()
+
+  try:
+    fullname = config.MergeOutputFiles['centroid']
+  except KeyError:
+    fullname = 'merged.centroid.smd'
+
+  OutputFiles.append(fullname)
+  writeCentroidToCsv(fullname)
 
 
   updateGUI("Closing files...")

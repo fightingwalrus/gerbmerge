@@ -72,6 +72,10 @@ Jobs = {}
 # include drills.
 LayerList = {'boardoutline': 1}
 
+# Maps all centroid information by part description
+# {'RefDes': [[RefDes, Layer, LocationX, LocationY, Rotation], ..] ..}
+CentroidPartMap = {}
+
 # The tool list as read in from the DefaultToolList file in the configuration
 # file. This is a dictionary indexed by tool name (e.g., 'T03') and
 # a floating point number as the value, the drill diameter in inches.
